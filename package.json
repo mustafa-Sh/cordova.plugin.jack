@@ -1,0 +1,21 @@
+{
+  "name": "cordova.plugin.jack",
+  "version": "2.0.1",
+  "description": "...",
+  "cordova": {
+    "id": "cordova.plugin.jack",
+    "platforms": [
+      "android",
+      "ios",
+      "browser"
+    ]
+  },
+  "keywords": [
+    "ecosystem:cordova",
+    "cordova-android",
+    "cordova-ios",
+    "cordova-browser"
+  ],
+  "author": "Muzammil Arif",
+  "license": "ISC"
+}
