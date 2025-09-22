@@ -83,16 +83,8 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
 
 - (void)sg_handleUserDidTakeScreenshot:(__unused NSNotification *)n {
     dispatch_async(dispatch_get_main_queue(), ^{
-        // Show overlay immediately after screenshot
         [self sg_showOverlay];
 
-        // 👉 Notify WebView so Angular can react (flash mask, clear fields, warn, etc.)
-        NSTimeInterval ms = [[NSDate date] timeIntervalSince1970] * 1000.0;
-        NSString *js = [NSString stringWithFormat:
-                        @"window.dispatchEvent(new CustomEvent('ios:screenshot',{detail:{ts:%0.0f}}));", ms];
-        [self.commandDelegate evalJs:js];
-
-        // Keep overlay if still captured; otherwise hide after grace period
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(self.sgScreenshotMaskDuration * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{
             [self sg_update];
@@ -116,28 +108,8 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
     });
 }
 
-// Prefer the active scene's key window on iOS 13+
-- (UIWindow *)sg_foregroundKeyWindow {
-    UIWindow *win = nil;
-    if (@available(iOS 13.0, *)) {
-        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-            if (scene.activationState == UISceneActivationStateForegroundActive &&
-                [scene isKindOfClass:[UIWindowScene class]]) {
-                for (UIWindow *w in ((UIWindowScene *)scene).windows) {
-                    if (w.isKeyWindow) { win = w; break; }
-                }
-            }
-            if (win) break;
-        }
-    }
-    if (!win) {
-        win = self.viewController.view.window ?: UIApplication.sharedApplication.keyWindow;
-    }
-    return win;
-}
-
 - (void)sg_showOverlay {
-    UIWindow *win = [self sg_foregroundKeyWindow];
+    UIWindow *win = self.viewController.view.window ?: UIApplication.sharedApplication.keyWindow;
     if (!win) return;
 
     if (!self.sgOverlay) {
