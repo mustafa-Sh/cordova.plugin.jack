@@ -1,6 +1,17 @@
 #import "CordovaPluginJack.h"
 #import <UIKit/UIKit.h>
 
+// --- Move the class extension BEFORE the implementation ---
+@interface CordovaPluginJack ()
+// ScreenGuard state
+@property (nonatomic, strong) UIView *sgOverlay;
+@property (nonatomic, assign) BOOL sgUseBlur;
+@property (nonatomic, assign) NSTimeInterval sgScreenshotMaskDuration;
+
+// Secure-rect overlays
+@property (nonatomic, strong) NSMutableArray<UITextField*> *jackSecureRects;
+@end
+
 @implementation CordovaPluginJack
 
 // ===== existing constants & method (unchanged) =====
@@ -9,24 +20,17 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
 
 - (void)kprfluclJoO1bQeF:(CDVInvokedUrlCommand*)command {
     @try {
-        NSDictionary *result = @{
-            @"1": X_k01V_Y,
-            @"2": Z_i02_vA
-        };
-
-        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
+        NSDictionary *result = @{ @"1": X_k01V_Y, @"2": Z_i02_vA };
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
+                                                      messageAsDictionary:result];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }
     @catch (NSException *exception) {
-        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:exception.reason];
+        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                                         messageAsString:exception.reason];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }
 }
-
-// ===== private state for secure rect overlays =====
-@interface CordovaPluginJack ()
-@property (nonatomic, strong) NSMutableArray<UITextField*> *jackSecureRects;
-@end
 
 // ===== Screen Guard: recording/mirroring + post-screenshot overlay =====
 
@@ -39,7 +43,9 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
 
 - (void)enable:(CDVInvokedUrlCommand*)command {
     // Parse opts: { style: "black"|"blur", screenshotMaskMs: number }
-    NSDictionary *opts = (command.arguments.count > 0 && [command.arguments[0] isKindOfClass:[NSDictionary class]]) ? command.arguments[0] : @{};
+    NSDictionary *opts = (command.arguments.count > 0 &&
+                          [command.arguments[0] isKindOfClass:[NSDictionary class]])
+                         ? command.arguments[0] : @{};
     NSString *style = [opts[@"style"] isKindOfClass:[NSString class]] ? opts[@"style"] : @"black";
     NSNumber *shotMs = [opts[@"screenshotMaskMs"] isKindOfClass:[NSNumber class]] ? opts[@"screenshotMaskMs"] : nil;
 
@@ -91,8 +97,8 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
 - (void)sg_handleUserDidTakeScreenshot:(__unused NSNotification *)n {
     dispatch_async(dispatch_get_main_queue(), ^{
         [self sg_showOverlay];
-
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(self.sgScreenshotMaskDuration * NSEC_PER_SEC)),
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
+                                     (int64_t)(self.sgScreenshotMaskDuration * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{
             [self sg_update];
         });
@@ -177,11 +183,13 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
     }
 }
 
-#pragma mark - Secure rectangle overlays (black/blur only in captures)
+#pragma mark - Secure rectangle overlays (black only in captures)
 
 // Convert CSS viewport rect (CSS px) to window coordinates (points)
 - (CGRect)jr_convertCSSRectToWindowPoints:(NSDictionary *)opts {
-    CGFloat dpr = [opts[@"dpr"] respondsToSelector:@selector(doubleValue)] ? [opts[@"dpr"] doubleValue] : UIScreen.mainScreen.scale;
+    CGFloat dpr = [opts[@"dpr"] respondsToSelector:@selector(doubleValue)]
+                  ? [opts[@"dpr"] doubleValue]
+                  : UIScreen.mainScreen.scale;
 
     CGFloat x = [opts[@"x"] doubleValue] / dpr;
     CGFloat y = [opts[@"y"] doubleValue] / dpr;
@@ -200,16 +208,18 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
                       w, h);
 }
 
-// Action: add a secure rect overlay over a DOM element's viewport rect
 // args: { x, y, width, height, dpr, radius? }
 - (void)addSecureRect:(CDVInvokedUrlCommand*)command {
-    NSDictionary *opts = (command.arguments.count && [command.arguments[0] isKindOfClass:[NSDictionary class]])
+    NSDictionary *opts = (command.arguments.count &&
+                          [command.arguments[0] isKindOfClass:[NSDictionary class]])
                          ? command.arguments[0] : @{};
     CGRect r = [self jr_convertCSSRectToWindowPoints:opts];
-    CGFloat radius = [opts[@"radius"] respondsToSelector:@selector(doubleValue)] ? [opts[@"radius"] doubleValue] : 8.0;
+    CGFloat radius = [opts[@"radius"] respondsToSelector:@selector(doubleValue)]
+                     ? [opts[@"radius"] doubleValue] : 8.0;
 
     if (CGRectIsEmpty(r) || r.size.width <= 0 || r.size.height <= 0) {
-        CDVPluginResult *err = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"bad rect"];
+        CDVPluginResult *err = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                                messageAsString:@"bad rect"];
         [self.commandDelegate sendPluginResult:err callbackId:command.callbackId];
         return;
     }
@@ -219,14 +229,14 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
 
         // Secure overlay: UITextField with secureTextEntry = YES
         UITextField *secureOverlay = [[UITextField alloc] initWithFrame:r];
-        secureOverlay.secureTextEntry = YES;          // 🔒 key: excluded from screenshots/recordings
-        secureOverlay.text = @" ";                    // keep secure path engaged
-        secureOverlay.userInteractionEnabled = NO;    // let touches pass through to HTML input
+        secureOverlay.secureTextEntry = YES;       // 🔒 excluded from screenshots/recordings
+        secureOverlay.text = @" ";                 // keep secure path engaged
+        secureOverlay.userInteractionEnabled = NO; // let touches pass through to HTML input
         secureOverlay.backgroundColor = [UIColor clearColor];
         secureOverlay.layer.cornerRadius = radius;
         secureOverlay.clipsToBounds = YES;
 
-        // If you ever see unreliable blacking on a specific iOS, uncomment this tiny alpha:
+        // If reliability issues on a device/iOS, you can force a tiny alpha:
         // secureOverlay.backgroundColor = [UIColor colorWithWhite:0 alpha:0.01];
 
         UIWindow *win = [self jr_foregroundKeyWindow];
@@ -238,14 +248,13 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
     });
 }
 
-// Action: clear all secure rect overlays
 - (void)clearSecureRects:(CDVInvokedUrlCommand*)command {
     [self jr_clearSecureRects];
     CDVPluginResult *ok = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:ok callbackId:command.callbackId];
 }
 
-// Internal helper to remove overlays without sending a plugin result
+// Internal helper (no plugin result)
 - (void)jr_clearSecureRects {
     dispatch_async(dispatch_get_main_queue(), ^{
         for (UITextField *v in self.jackSecureRects) { [v removeFromSuperview]; }
