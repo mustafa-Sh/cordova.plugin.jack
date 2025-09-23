@@ -3,13 +3,10 @@
 
 // --- Move the class extension BEFORE the implementation ---
 @interface CordovaPluginJack ()
-// ScreenGuard state
-@property (nonatomic, strong) UIView *sgOverlay;
-@property (nonatomic, assign) BOOL sgUseBlur;
-@property (nonatomic, assign) NSTimeInterval sgScreenshotMaskDuration;
-
-// Secure-rect overlays
-@property (nonatomic, strong) NSMutableArray<UITextField*> *jackSecureRects;
+@property (nonatomic, strong, readwrite) UIView *sgOverlay;
+@property (nonatomic, assign, readwrite) BOOL sgUseBlur;
+@property (nonatomic, assign, readwrite) NSTimeInterval sgScreenshotMaskDuration;
+@property (nonatomic, strong, readwrite) NSMutableArray<UITextField*> *jackSecureRects;
 @end
 
 @implementation CordovaPluginJack
