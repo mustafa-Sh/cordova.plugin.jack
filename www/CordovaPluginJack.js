@@ -23,6 +23,14 @@ var CordovaPluginJack = {
   disable: function (successCallback, errorCallback) {
     exec(successCallback, errorCallback, 'CordovaPluginJack', 'disable', []);
   }
+
+  addSecureRect: function (successCallback, errorCallback, opts) {
+    exec(successCallback, errorCallback, 'CordovaPluginJack', 'addSecureRect', [opts || {}]);
+  };
+
+  clearSecureRects: function (successCallback, errorCallback) {
+    exec(successCallback, errorCallback, 'CordovaPluginJack', 'clearSecureRects', []);
+  };  
 };
 
 module.exports = CordovaPluginJack;

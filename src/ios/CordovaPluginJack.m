@@ -23,6 +23,11 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
     }
 }
 
+// ===== private state for secure rect overlays =====
+@interface CordovaPluginJack ()
+@property (nonatomic, strong) NSMutableArray<UITextField*> *jackSecureRects;
+@end
+
 // ===== Screen Guard: recording/mirroring + post-screenshot overlay =====
 
 - (void)pluginInitialize {
@@ -66,6 +71,7 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
 - (void)disable:(CDVInvokedUrlCommand*)command {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [self sg_hideOverlay];
+    [self jr_clearSecureRects]; // also clear any secure rects
 
     CDVPluginResult *ok = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:ok callbackId:command.callbackId];
@@ -73,6 +79,7 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [self jr_clearSecureRects];
 }
 
 // ===== Notification handlers =====
@@ -96,7 +103,7 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
     [self sg_update];
 }
 
-// ===== Core logic =====
+// ===== Core logic (screen recording / mirroring) =====
 
 - (void)sg_update {
     BOOL captured = NO;
@@ -108,8 +115,28 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
     });
 }
 
+// Prefer the active scene's key window on iOS 13+
+- (UIWindow *)jr_foregroundKeyWindow {
+    UIWindow *win = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive &&
+                [scene isKindOfClass:[UIWindowScene class]]) {
+                for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+                    if (w.isKeyWindow) { win = w; break; }
+                }
+            }
+            if (win) break;
+        }
+    }
+    if (!win) {
+        win = self.viewController.view.window ?: UIApplication.sharedApplication.keyWindow;
+    }
+    return win;
+}
+
 - (void)sg_showOverlay {
-    UIWindow *win = self.viewController.view.window ?: UIApplication.sharedApplication.keyWindow;
+    UIWindow *win = [self jr_foregroundKeyWindow];
     if (!win) return;
 
     if (!self.sgOverlay) {
@@ -148,6 +175,82 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
     if (self.sgOverlay) {
         self.sgOverlay.hidden = YES;
     }
+}
+
+#pragma mark - Secure rectangle overlays (black/blur only in captures)
+
+// Convert CSS viewport rect (CSS px) to window coordinates (points)
+- (CGRect)jr_convertCSSRectToWindowPoints:(NSDictionary *)opts {
+    CGFloat dpr = [opts[@"dpr"] respondsToSelector:@selector(doubleValue)] ? [opts[@"dpr"] doubleValue] : UIScreen.mainScreen.scale;
+
+    CGFloat x = [opts[@"x"] doubleValue] / dpr;
+    CGFloat y = [opts[@"y"] doubleValue] / dpr;
+    CGFloat w = [opts[@"width"] doubleValue] / dpr;
+    CGFloat h = [opts[@"height"] doubleValue] / dpr;
+
+    UIView *wv = (UIView *)self.webView;
+    UIWindow *win = [self jr_foregroundKeyWindow];
+    if (!wv || !win) return CGRectZero;
+
+    // WebView frame in window coords (points)
+    CGRect webFrameInWindow = [wv.superview convertRect:wv.frame toView:win];
+
+    return CGRectMake(webFrameInWindow.origin.x + x,
+                      webFrameInWindow.origin.y + y,
+                      w, h);
+}
+
+// Action: add a secure rect overlay over a DOM element's viewport rect
+// args: { x, y, width, height, dpr, radius? }
+- (void)addSecureRect:(CDVInvokedUrlCommand*)command {
+    NSDictionary *opts = (command.arguments.count && [command.arguments[0] isKindOfClass:[NSDictionary class]])
+                         ? command.arguments[0] : @{};
+    CGRect r = [self jr_convertCSSRectToWindowPoints:opts];
+    CGFloat radius = [opts[@"radius"] respondsToSelector:@selector(doubleValue)] ? [opts[@"radius"] doubleValue] : 8.0;
+
+    if (CGRectIsEmpty(r) || r.size.width <= 0 || r.size.height <= 0) {
+        CDVPluginResult *err = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"bad rect"];
+        [self.commandDelegate sendPluginResult:err callbackId:command.callbackId];
+        return;
+    }
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!self.jackSecureRects) self.jackSecureRects = [NSMutableArray array];
+
+        // Secure overlay: UITextField with secureTextEntry = YES
+        UITextField *secureOverlay = [[UITextField alloc] initWithFrame:r];
+        secureOverlay.secureTextEntry = YES;          // 🔒 key: excluded from screenshots/recordings
+        secureOverlay.text = @" ";                    // keep secure path engaged
+        secureOverlay.userInteractionEnabled = NO;    // let touches pass through to HTML input
+        secureOverlay.backgroundColor = [UIColor clearColor];
+        secureOverlay.layer.cornerRadius = radius;
+        secureOverlay.clipsToBounds = YES;
+
+        // If you ever see unreliable blacking on a specific iOS, uncomment this tiny alpha:
+        // secureOverlay.backgroundColor = [UIColor colorWithWhite:0 alpha:0.01];
+
+        UIWindow *win = [self jr_foregroundKeyWindow];
+        [win addSubview:secureOverlay];
+        [self.jackSecureRects addObject:secureOverlay];
+
+        CDVPluginResult *ok = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+        [self.commandDelegate sendPluginResult:ok callbackId:command.callbackId];
+    });
+}
+
+// Action: clear all secure rect overlays
+- (void)clearSecureRects:(CDVInvokedUrlCommand*)command {
+    [self jr_clearSecureRects];
+    CDVPluginResult *ok = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    [self.commandDelegate sendPluginResult:ok callbackId:command.callbackId];
+}
+
+// Internal helper to remove overlays without sending a plugin result
+- (void)jr_clearSecureRects {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (UITextField *v in self.jackSecureRects) { [v removeFromSuperview]; }
+        [self.jackSecureRects removeAllObjects];
+    });
 }
 
 @end
