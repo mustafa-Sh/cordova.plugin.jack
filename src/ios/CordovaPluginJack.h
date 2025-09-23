@@ -15,8 +15,8 @@
 - (void)clearSecureRects:(CDVInvokedUrlCommand*)command;
 
 // State
-@property (nonatomic, strong) UIView *sgOverlay;
-@property (nonatomic, assign) BOOL sgUseBlur;
-@property (nonatomic, assign) NSTimeInterval sgScreenshotMaskDuration;
+@property (nonatomic, strong, readonly) UIView *sgOverlay;
+@property (nonatomic, assign, readonly) BOOL sgUseBlur;
+@property (nonatomic, assign, readonly) NSTimeInterval sgScreenshotMaskDuration;
 
 @end
