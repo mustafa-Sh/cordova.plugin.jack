@@ -224,21 +224,34 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
     dispatch_async(dispatch_get_main_queue(), ^{
         if (!self.jackSecureRects) self.jackSecureRects = [NSMutableArray array];
 
-        // Secure overlay: UITextField with secureTextEntry = YES
+        // 1) Secure overlay
         UITextField *secureOverlay = [[UITextField alloc] initWithFrame:r];
-        secureOverlay.secureTextEntry = YES;       // 🔒 excluded from screenshots/recordings
-        secureOverlay.text = @" ";                 // keep secure path engaged
-        secureOverlay.userInteractionEnabled = NO; // let touches pass through to HTML input
+        secureOverlay.secureTextEntry = YES;        // 🔒 engage secure rendering path
+        secureOverlay.text = @" ";                  // keep it “non-empty”
+        secureOverlay.userInteractionEnabled = NO;  // pass touches to HTML field
         secureOverlay.backgroundColor = [UIColor clearColor];
         secureOverlay.layer.cornerRadius = radius;
         secureOverlay.clipsToBounds = YES;
 
-        // If reliability issues on a device/iOS, you can force a tiny alpha:
-        // secureOverlay.backgroundColor = [UIColor colorWithWhite:0 alpha:0.01];
+        // 2) Transparent filler INSIDE the secure field (critical)
+        UIView *filler = [[UIView alloc] initWithFrame:secureOverlay.bounds];
+        filler.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        filler.userInteractionEnabled = NO;
+        filler.backgroundColor = [UIColor clearColor];
 
+        // (Optional debug) uncomment next line to verify placement on-screen,
+        // then re-comment for production:
+        // filler.backgroundColor = [UIColor colorWithWhite:1 alpha:0.12];
+
+        [secureOverlay addSubview:filler];
+
+        // 3) Add to the top-most window
         UIWindow *win = [self jr_foregroundKeyWindow];
         [win addSubview:secureOverlay];
         [self.jackSecureRects addObject:secureOverlay];
+
+        // keep on top (in case other views are added later)
+        [win bringSubviewToFront:secureOverlay];
 
         CDVPluginResult *ok = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:ok callbackId:command.callbackId];
