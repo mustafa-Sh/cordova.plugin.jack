@@ -221,36 +221,34 @@ static NSString *const Z_i02_vA = @"OS9tckZ4LCZOc1ovWDl6TA==";
         return;
     }
 
+    // --- inside addSecureRect: (only middle changed) ---
     dispatch_async(dispatch_get_main_queue(), ^{
         if (!self.jackSecureRects) self.jackSecureRects = [NSMutableArray array];
 
-        // 1) Secure overlay
         UITextField *secureOverlay = [[UITextField alloc] initWithFrame:r];
-        secureOverlay.secureTextEntry = YES;        // 🔒 engage secure rendering path
-        secureOverlay.text = @" ";                  // keep it “non-empty”
-        secureOverlay.userInteractionEnabled = NO;  // pass touches to HTML field
+        secureOverlay.secureTextEntry = YES;        // engage secure path
+        secureOverlay.text = @" ";                  // keep it non-empty
+        secureOverlay.userInteractionEnabled = NO;  // touches pass through
         secureOverlay.backgroundColor = [UIColor clearColor];
         secureOverlay.layer.cornerRadius = radius;
         secureOverlay.clipsToBounds = YES;
 
-        // 2) Transparent filler INSIDE the secure field (critical)
+        // 🔑 Transparent filler INSIDE the secure field so the rect actually draws
         UIView *filler = [[UIView alloc] initWithFrame:secureOverlay.bounds];
         filler.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         filler.userInteractionEnabled = NO;
-        filler.backgroundColor = [UIColor clearColor];
 
-        // (Optional debug) uncomment next line to verify placement on-screen,
-        // then re-comment for production:
-        // filler.backgroundColor = [UIColor colorWithWhite:1 alpha:0.12];
+        // Important: tiny alpha to force compositing but invisible to the eye
+        filler.backgroundColor = [UIColor colorWithWhite:0 alpha:0.01];
+
+        // (Debug) to check placement, temporarily use:
+        // filler.backgroundColor = [UIColor colorWithRed:1 green:0 blue:0 alpha:0.2];
 
         [secureOverlay addSubview:filler];
 
-        // 3) Add to the top-most window
         UIWindow *win = [self jr_foregroundKeyWindow];
         [win addSubview:secureOverlay];
         [self.jackSecureRects addObject:secureOverlay];
-
-        // keep on top (in case other views are added later)
         [win bringSubviewToFront:secureOverlay];
 
         CDVPluginResult *ok = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
