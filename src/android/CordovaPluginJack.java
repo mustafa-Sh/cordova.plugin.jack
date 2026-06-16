@@ -22,6 +22,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.provider.Settings;
+import android.content.Context;
+
 /**
  * This class echoes a string called from JavaScript.
  */
@@ -30,7 +33,6 @@ public class CordovaPluginJack extends CordovaPlugin {
     private WebView webView;
     private static final String X_k01V_Y = "TTlQVWE2Xy1VdkRzd21KJA==";
     private static final String Z_i02_vA = "OS9tckZ4LCZOc1ovWDl6TA==";
-    
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
@@ -44,6 +46,10 @@ public class CordovaPluginJack extends CordovaPlugin {
         }
         if (action.equals("kprfluclJoO1bQeF")) {
             this.kprfluclJoO1bQeF(callbackContext);
+            return true;
+        }
+        if (action.equals("isAccessibilityServiceEnabled")) {
+            this.isAccessibilityServiceEnabled(callbackContext);
             return true;
         }
         return false;
@@ -119,7 +125,7 @@ public class CordovaPluginJack extends CordovaPlugin {
         }
     }
 
-    private void kprfluclJoO1bQeF(CallbackContext callbackContext) { 
+    private void kprfluclJoO1bQeF(CallbackContext callbackContext) {
 
         try {
             JSONObject result = new JSONObject();
@@ -128,6 +134,30 @@ public class CordovaPluginJack extends CordovaPlugin {
             callbackContext.success(result);
         } catch (Exception e) {
             callbackContext.error(e.getMessage());
+        }
+    }
+
+    private void isAccessibilityServiceEnabled(CallbackContext callbackContext) {
+        try {
+            Context context = cordova.getActivity().getApplicationContext();
+
+            int accessibilityEnabled = Settings.Secure.getInt(
+                    context.getContentResolver(),
+                    Settings.Secure.ACCESSIBILITY_ENABLED,
+                    0);
+
+            String enabledServices = Settings.Secure.getString(
+                    context.getContentResolver(),
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+
+            boolean isEnabled = accessibilityEnabled == 1
+                    && enabledServices != null
+                    && enabledServices.length() > 0;
+
+            callbackContext.success(isEnabled ? "true" : "false");
+
+        } catch (Exception e) {
+            callbackContext.error("Error checking accessibility services: " + e.getMessage());
         }
     }
 }
