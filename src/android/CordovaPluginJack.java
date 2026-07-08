@@ -52,6 +52,10 @@ public class CordovaPluginJack extends CordovaPlugin {
             this.isAccessibilityServiceEnabled(callbackContext);
             return true;
         }
+        if (action.equals("isWirelessDebuggingEnabled")) {
+            this.isWirelessDebuggingEnabled(callbackContext);
+            return true;
+        }
         return false;
     }
 
@@ -158,6 +162,22 @@ public class CordovaPluginJack extends CordovaPlugin {
 
         } catch (Exception e) {
             callbackContext.error("Error checking accessibility services: " + e.getMessage());
+        }
+    }
+
+    private void isWirelessDebuggingEnabled(CallbackContext callbackContext) {
+        try {
+            Context context = cordova.getActivity().getApplicationContext();
+
+            int adbWifiEnabled = Settings.Global.getInt(
+                    context.getContentResolver(),
+                    "adb_wifi_enabled",
+                    0);
+
+            callbackContext.success(adbWifiEnabled == 1 ? "true" : "false");
+
+        } catch (Exception e) {
+            callbackContext.error("Error checking wireless debugging: " + e.getMessage());
         }
     }
 }

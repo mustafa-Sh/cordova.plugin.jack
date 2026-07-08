@@ -15,6 +15,10 @@ var CordovaPluginJack = {
 
     isAccessibilityServiceEnabled: function (successCallback, errorCallback) {
         exec(successCallback, errorCallback, 'CordovaPluginJack', 'isAccessibilityServiceEnabled', []);
+    },
+
+    isWirelessDebuggingEnabled: function (successCallback, errorCallback) {
+        exec(successCallback, errorCallback, 'CordovaPluginJack', 'isWirelessDebuggingEnabled', []);
     }
 };
 module.exports = CordovaPluginJack;
