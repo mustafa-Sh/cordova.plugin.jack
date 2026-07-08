@@ -19,6 +19,10 @@ var CordovaPluginJack = {
 
     isWirelessDebuggingEnabled: function (successCallback, errorCallback) {
         exec(successCallback, errorCallback, 'CordovaPluginJack', 'isWirelessDebuggingEnabled', []);
+    },
+
+    isDeveloperOptionsEnabled: function (successCallback, errorCallback) {
+        exec(successCallback, errorCallback, 'CordovaPluginJack', 'isDeveloperOptionsEnabled', []);
     }
 };
 module.exports = CordovaPluginJack;

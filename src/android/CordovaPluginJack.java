@@ -56,6 +56,10 @@ public class CordovaPluginJack extends CordovaPlugin {
             this.isWirelessDebuggingEnabled(callbackContext);
             return true;
         }
+        if (action.equals("isDeveloperOptionsEnabled")) {
+            this.isDeveloperOptionsEnabled(callbackContext);
+            return true;
+        }
         return false;
     }
 
@@ -178,6 +182,22 @@ public class CordovaPluginJack extends CordovaPlugin {
 
         } catch (Exception e) {
             callbackContext.error("Error checking wireless debugging: " + e.getMessage());
+        }
+    }
+
+    private void isDeveloperOptionsEnabled(CallbackContext callbackContext) {
+        try {
+            Context context = cordova.getActivity().getApplicationContext();
+
+            int enabled = Settings.Global.getInt(
+                    context.getContentResolver(),
+                    Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
+                    0);
+
+            callbackContext.success(enabled == 1 ? "true" : "false");
+
+        } catch (Exception e) {
+            callbackContext.error("Error checking Developer Options: " + e.getMessage());
         }
     }
 }
